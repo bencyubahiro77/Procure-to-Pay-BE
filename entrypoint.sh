@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Waiting for database..."
-# Optional: Add a simple wait for postgres
-sleep 2
+echo "Starting application..."
 
 echo "Running migrations..."
 python manage.py migrate --noinput
@@ -21,7 +19,6 @@ else:
 " | python manage.py shell || true
 fi
 
-# Collect static files (remove || true so errors are caught)
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
