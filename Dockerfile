@@ -17,5 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 RUN chmod +x /app/entrypoint.sh
 
+# Create staticfiles directory
+RUN mkdir -p /app/staticfiles
+
 EXPOSE 8000
 CMD ["/app/entrypoint.sh"]
