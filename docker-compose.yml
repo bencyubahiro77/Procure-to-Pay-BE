@@ -16,6 +16,7 @@ services:
     command: gunicorn procure_to_pay.wsgi:application -b 0.0.0.0:8000 -w 2 --timeout 300
     volumes:
       - .:/app
+      - static_volume:/app/staticfiles
     env_file:
       - .env
     ports:
@@ -25,3 +26,4 @@ services:
 
 volumes:
   pgdata:
+  static_volume:
