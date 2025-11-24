@@ -72,23 +72,23 @@ class PurchaseRequestViewSet(viewsets.ModelViewSet):
 
         if role == "staff":
             # Staff see only their own requests
-            return self.queryset.filter(created_by=user)
+            return self.queryset.filter(created_by=user).order_by('-created_at')
         
         elif role == "approver_l1":
             # Approver 1 sees all requests
-            return self.queryset.all()
+            return self.queryset.all().order_by('-created_at')
         
         elif role == "approver_l2":
             # Approver 2 only sees requests approved by Approver 1
-            return self.queryset.filter(approvals__level=1, approvals__approved=True)
+            return self.queryset.filter(approvals__level=1, approvals__approved=True).order_by('-created_at')
         
         elif role == "finance":
             # Finance only sees requests approved by Approver 2 (status is APPROVED)
-            return self.queryset.filter(status="APPROVED")
+            return self.queryset.filter(status="APPROVED").order_by('-created_at')
         
         elif role == "admin":
             # Admin sees all requests
-            return self.queryset.all()
+            return self.queryset.all().order_by('-created_at')
 
         # Everything else: nothing
         return self.queryset.none()
