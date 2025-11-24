@@ -45,7 +45,7 @@ class MeView(generics.RetrieveAPIView):
         return self.request.user
 
 class UserListView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated, IsAdmin  | IsFinance]
+    permission_classes = [IsAuthenticated, IsAdmin]
     serializer_class = UserSerializer
     pagination_class = RequestPagination
     queryset = User.objects.all()
@@ -66,10 +66,24 @@ class UserListView(generics.ListAPIView):
     ]
 
 class UserDetailView(generics.RetrieveAPIView):
-    permission_classes = [IsAuthenticated, IsAdmin  | IsStaff | IsApprover  | IsFinance]
+    permission_classes = [IsAuthenticated, IsAdmin]
     serializer_class = UserSerializer
     queryset = User.objects.all()
     lookup_field = 'id'
+    
+    def get_object(self):
+        """
+        Allow admin to view any user details.
+        Regular users can only view their own details (should use /me/ endpoint instead).
+        """
+        user = super().get_object()
+        
+        # If user is not admin and trying to view someone else's details, deny access
+        if not self.request.user.profile.role == 'admin' and user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only view your own user details. Use /api/accounts/me/ endpoint.")
+        
+        return user
 
 class ChangeUserRoleView(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
