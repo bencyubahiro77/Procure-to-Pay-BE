@@ -1,5 +1,7 @@
 # Procure-to-Pay System
 
+**Deployed API Docs:** [https://ist-procure-to-pay.onrender.com/api/docs/](https://ist-procure-to-pay.onrender.com/api/docs/)
+
 A comprehensive **Procure-to-Pay (P2P)** application built with Django REST Framework. This system streamlines the entire procurement lifecycle from purchase request creation, through multi-level approvals, to purchase order generation and receipt validation using AI-powered verification.
 
 ---
