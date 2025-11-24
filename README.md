@@ -87,7 +87,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/bencyubahiro77/IST-Procure-to-Pay-BE.git
+git clone https://github.com/bencyubahiro77/Procure-to-Pay-BE.git
 cd procure_to_pay_full
 ```
 
