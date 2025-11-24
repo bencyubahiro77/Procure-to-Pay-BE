@@ -142,10 +142,23 @@ docker-compose up -d --build
 This will:
 - Build the Django application container
 - Start PostgreSQL database container
-- Run database migrations automatically (via entrypoint.sh)
 - Start the application on `http://localhost:8000`
 
-### 4. Create Initial Users
+> [!IMPORTANT]
+> While the `entrypoint.sh` script attempts to run migrations automatically, it's best practice to verify migrations have completed successfully before proceeding.
+
+### 4. Run Database Migrations
+
+**Before creating users or seeding data, you must create the database tables:**
+
+```bash
+# Run migrations to create all database tables
+docker-compose exec web python manage.py migrate
+```
+
+This command creates all necessary tables including `auth_user`, purchase requests, approvals, and other models.
+
+### 5. Create Initial Users
 
 The application includes a management command to seed default users:
 
@@ -155,13 +168,23 @@ docker-compose exec web python manage.py seed_users
 
 This creates users with different roles for testing purposes.
 
+**Default Test Accounts:**
+
+| Role | Username | Password |
+|------|----------|----------|
+| **Admin** | `admin_user` | `password123` |
+| **Staff** | `staff_user` | `password123` |
+| **Approver L1** | `approver1_user` | `password123` |
+| **Approver L2** | `approver2_user` | `password123` |
+| **Finance** | `finance_user` | `password123` |
+
 **Alternative:** Create a superuser manually:
 
 ```bash
 docker-compose exec web python manage.py createsuperuser
 ```
 
-### 5. Access the Application
+### 6. Access the Application
 
 - **API Base URL:** `http://localhost:8000/api/`
 - **API Documentation:** `http://localhost:8000/api/docs/`
