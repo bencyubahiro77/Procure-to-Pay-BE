@@ -17,9 +17,37 @@ class RequestItemSerializer(serializers.ModelSerializer):
 
 class RequestItemInputSerializer(serializers.Serializer):
     """Serializer for item input - used in write operations"""
-    name = serializers.CharField(max_length=255)
-    qty = serializers.IntegerField(min_value=1)
-    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    name = serializers.CharField(
+        max_length=255, 
+        required=True,
+        allow_blank=False,
+        error_messages={
+            'required': 'Item name is required.',
+            'blank': 'Item name cannot be blank.'
+        }
+    )
+    qty = serializers.IntegerField(
+        min_value=1,
+        required=True,
+        error_messages={
+            'required': 'Item quantity is required.',
+            'min_value': 'Quantity must be at least 1.',
+            'invalid': 'Quantity must be a valid integer.'
+        }
+    )
+    unit_price = serializers.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        min_value=0.01,
+        required=True,
+        error_messages={
+            'required': 'Item unit price is required.',
+            'min_value': 'Unit price must be greater than 0.',
+            'invalid': 'Unit price must be a valid decimal number.',
+            'max_digits': 'Unit price is too large.',
+            'max_decimal_places': 'Unit price can have at most 2 decimal places.'
+        }
+    )
 
 
 class ApprovalSerializer(serializers.ModelSerializer):
@@ -34,12 +62,14 @@ class ApprovalSerializer(serializers.ModelSerializer):
 from drf_spectacular.utils import extend_schema_field
 
 class PurchaseRequestSerializer(serializers.ModelSerializer):
-    items = RequestItemInputSerializer(many=True, required=False, write_only=True)
+    # items is REQUIRED when creating a purchase request
+    items = RequestItemInputSerializer(many=True, required=True, write_only=True)
     items_display = RequestItemSerializer(source='items', many=True, read_only=True)
     created_by = serializers.StringRelatedField(read_only=True)
     last_approved_by = serializers.StringRelatedField(read_only=True)
     approvals = ApprovalSerializer(many=True, read_only=True)
-    proforma = serializers.FileField(required=False, allow_null=True)
+    # Make description optional but don't allow empty strings (removes "send empty value" in Swagger)
+    description = serializers.CharField(required=False, allow_blank=False, default="")
     purchase_order = serializers.SerializerMethodField()
     receipt = serializers.SerializerMethodField()
     receipt_validation = serializers.SerializerMethodField()
@@ -47,8 +77,9 @@ class PurchaseRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseRequest
         fields = ['id', 'title', 'description', 'vendor', 'amount', 'status', 'created_by', 'last_approved_by',
-                  'created_at', 'proforma', 'purchase_order', 'receipt', 'receipt_validation', 'items', 'items_display', 'approvals']
-        read_only_fields = ['status', 'created_by', 'created_at', 'last_approved_by']
+                  'created_at', 'purchase_order', 'receipt', 'receipt_validation', 'items', 'items_display', 'approvals']
+        # amount is now read-only and auto-calculated from items
+        read_only_fields = ['status', 'created_by', 'created_at', 'last_approved_by', 'amount']
 
     
     @extend_schema_field(serializers.URLField(allow_null=True))
@@ -76,6 +107,23 @@ class PurchaseRequestSerializer(serializers.ModelSerializer):
                 'discrepancies': rv.discrepancies or []
             }
         return None
+    
+    def validate_items(self, value):
+        """Validate that items list is not empty"""
+        if not value or len(value) == 0:
+            raise serializers.ValidationError(
+                "At least one item is required for a purchase request."
+            )
+        return value
+    
+    def validate(self, attrs):
+        """Additional validation for the entire request"""
+        # Ensure items are provided during creation
+        if not self.instance and ('items' not in attrs or not attrs['items']):
+            raise serializers.ValidationError({
+                'items': 'Items are required when creating a purchase request.'
+            })
+        return attrs
 
     def to_internal_value(self, data):
         """Handle multipart/form-data conversion of items field"""
@@ -107,6 +155,16 @@ class PurchaseRequestSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items', [])
         user = self.context['request'].user
         
+        # Calculate total amount from items (ignore any user-provided amount)
+        from decimal import Decimal
+        total_amount = Decimal('0.00')
+        for item_data in items_data:
+            item_total = item_data['qty'] * item_data['unit_price']
+            total_amount += item_total
+        
+        # Overwrite amount with calculated total
+        validated_data['amount'] = total_amount
+        
         pr = PurchaseRequest.objects.create(created_by=user, **validated_data)
 
         for item_data in items_data:
@@ -128,6 +186,17 @@ class PurchaseRequestSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Cannot modify a request that has already been approved by Level 1')
         
         items_data = validated_data.pop('items', None)
+        
+        # Recalculate amount if items are being updated
+        if items_data is not None:
+            from decimal import Decimal
+            total_amount = Decimal('0.00')
+            for item_data in items_data:
+                item_total = item_data['qty'] * item_data['unit_price']
+                total_amount += item_total
+            
+            # Overwrite amount with calculated total
+            validated_data['amount'] = total_amount
         
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
